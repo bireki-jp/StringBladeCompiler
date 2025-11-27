@@ -67,7 +67,6 @@ class ParallelTesting
      * Create a new parallel testing instance.
      *
      * @param  \Illuminate\Contracts\Container\Container  $container
-     * @return void
      */
     public function __construct(Container $container)
     {
@@ -261,7 +260,7 @@ class ParallelTesting
      */
     public function token()
     {
-        return $token = $this->tokenResolver
+        return $this->tokenResolver
             ? call_user_func($this->tokenResolver)
             : ($_SERVER['TEST_TOKEN'] ?? false);
     }

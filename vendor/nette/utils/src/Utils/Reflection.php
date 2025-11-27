@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace Nette\Utils;
 
 use Nette;
+use function constant, current, defined, end, explode, file_get_contents, implode, ltrim, next, ord, strrchr, strtolower, substr;
+use const T_AS, T_CLASS, T_COMMENT, T_CURLY_OPEN, T_DOC_COMMENT, T_DOLLAR_OPEN_CURLY_BRACES, T_ENUM, T_INTERFACE, T_NAME_FULLY_QUALIFIED, T_NAME_QUALIFIED, T_NAMESPACE, T_NS_SEPARATOR, T_STRING, T_TRAIT, T_USE, T_WHITESPACE, TOKEN_PARSE;
 
 
 /**
@@ -19,68 +21,20 @@ final class Reflection
 {
 	use Nette\StaticClass;
 
-	private const BUILTIN_TYPES = [
-		'string' => 1, 'int' => 1, 'float' => 1, 'bool' => 1, 'array' => 1, 'object' => 1,
-		'callable' => 1, 'iterable' => 1, 'void' => 1, 'null' => 1, 'mixed' => 1, 'false' => 1,
-		'never' => 1,
-	];
-
-	private const CLASS_KEYWORDS = [
-		'self' => 1, 'parent' => 1, 'static' => 1,
-	];
-
-
-	/**
-	 * Determines if type is PHP built-in type. Otherwise, it is the class name.
-	 */
+	/** @deprecated use Nette\Utils\Validators::isBuiltinType() */
 	public static function isBuiltinType(string $type): bool
 	{
-		return isset(self::BUILTIN_TYPES[strtolower($type)]);
+		return Validators::isBuiltinType($type);
 	}
 
 
-	/**
-	 * Determines if type is special class name self/parent/static.
-	 */
+	#[\Deprecated('use Nette\Utils\Validators::isClassKeyword()')]
 	public static function isClassKeyword(string $name): bool
 	{
-		return isset(self::CLASS_KEYWORDS[strtolower($name)]);
+		return Validators::isClassKeyword($name);
 	}
 
 
-	/**
-	 * Returns the type of return value of given function or method and normalizes `self`, `static`, and `parent` to actual class names.
-	 * If the function does not have a return type, it returns null.
-	 */
-	public static function getReturnType(\ReflectionFunctionAbstract $func): ?Type
-	{
-		return Type::fromReflection($func);
-	}
-
-
-	/**
-	 * Returns the type of given parameter and normalizes `self` and `parent` to the actual class names.
-	 * If the parameter does not have a type, it returns null.
-	 */
-	public static function getParameterType(\ReflectionParameter $param): ?Type
-	{
-		return Type::fromReflection($param);
-	}
-
-
-	/**
-	 * Returns the type of given property and normalizes `self` and `parent` to the actual class names.
-	 * If the property does not have a type, it returns null.
-	 */
-	public static function getPropertyType(\ReflectionProperty $prop): ?Type
-	{
-		return Type::fromReflection($prop);
-	}
-
-
-	/**
-	 * @deprecated use ReflectionParameter::getDefaultValue()
-	 */
 	public static function getParameterDefaultValue(\ReflectionParameter $param): mixed
 	{
 		if ($param->isDefaultValueConstant()) {
@@ -147,7 +101,7 @@ final class Reflection
 
 		$hash = [$method->getFileName(), $method->getStartLine(), $method->getEndLine()];
 		if (($alias = $decl->getTraitAliases()[$method->name] ?? null)
-			&& ($m = new \ReflectionMethod($alias))
+			&& ($m = new \ReflectionMethod(...explode('::', $alias, 2)))
 			&& $hash === [$m->getFileName(), $m->getStartLine(), $m->getEndLine()]
 		) {
 			return self::getMethodDeclaringMethod($m);
@@ -172,7 +126,7 @@ final class Reflection
 	public static function areCommentsAvailable(): bool
 	{
 		static $res;
-		return $res ?? $res = (bool) (new \ReflectionMethod(__METHOD__))->getDocComment();
+		return $res ?? $res = (bool) (new \ReflectionMethod(self::class, __FUNCTION__))->getDocComment();
 	}
 
 
@@ -183,7 +137,7 @@ final class Reflection
 		} elseif ($ref instanceof \ReflectionMethod) {
 			return $ref->getDeclaringClass()->name . '::' . $ref->name . '()';
 		} elseif ($ref instanceof \ReflectionFunction) {
-			return $ref->name . '()';
+			return $ref->isAnonymous() ? '{closure}()' : $ref->name . '()';
 		} elseif ($ref instanceof \ReflectionProperty) {
 			return self::getPropertyDeclaringClass($ref)->name . '::$' . $ref->name;
 		} elseif ($ref instanceof \ReflectionParameter) {
@@ -205,7 +159,7 @@ final class Reflection
 		if (empty($name)) {
 			throw new Nette\InvalidArgumentException('Class name must not be empty.');
 
-		} elseif (isset(self::BUILTIN_TYPES[$lower])) {
+		} elseif (Validators::isBuiltinType($lower)) {
 			return $lower;
 
 		} elseif ($lower === 'self' || $lower === 'static') {
@@ -235,7 +189,7 @@ final class Reflection
 	}
 
 
-	/** @return array of [alias => class] */
+	/** @return array<string, class-string> of [alias => class] */
 	public static function getUseStatements(\ReflectionClass $class): array
 	{
 		if ($class->isAnonymous()) {
@@ -268,7 +222,8 @@ final class Reflection
 			$tokens = [];
 		}
 
-		$namespace = $class = $classLevel = $level = null;
+		$namespace = $class = null;
+		$classLevel = $level = 0;
 		$res = $uses = [];
 
 		$nameTokens = [T_STRING, T_NS_SEPARATOR, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED];
@@ -284,9 +239,7 @@ final class Reflection
 				case T_CLASS:
 				case T_INTERFACE:
 				case T_TRAIT:
-				case PHP_VERSION_ID < 80100
-					? T_CLASS
-					: T_ENUM:
+				case T_ENUM:
 					if ($name = self::fetch($tokens, T_STRING)) {
 						$class = $namespace . $name;
 						$classLevel = $level + 1;
@@ -337,7 +290,7 @@ final class Reflection
 
 				case ord('}'):
 					if ($level === $classLevel) {
-						$class = $classLevel = null;
+						$class = $classLevel = 0;
 					}
 
 					$level--;

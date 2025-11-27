@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace Nette\Utils;
 
 use Nette;
-use function is_array, is_object, is_string;
+use function explode, func_get_args, ini_get, is_array, is_callable, is_object, is_string, preg_replace, restore_error_handler, set_error_handler, sprintf, str_contains, str_ends_with;
 
 
 /**
@@ -87,18 +87,18 @@ final class Callback
 	 * @param  callable  $callable  type check is escalated to ReflectionException
 	 * @throws \ReflectionException  if callback is not valid
 	 */
-	public static function toReflection($callable): \ReflectionFunctionAbstract
+	public static function toReflection($callable): \ReflectionMethod|\ReflectionFunction
 	{
 		if ($callable instanceof \Closure) {
 			$callable = self::unwrap($callable);
 		}
 
 		if (is_string($callable) && str_contains($callable, '::')) {
-			return new \ReflectionMethod($callable);
+			return new ReflectionMethod(...explode('::', $callable, 2));
 		} elseif (is_array($callable)) {
-			return new \ReflectionMethod($callable[0], $callable[1]);
+			return new ReflectionMethod($callable[0], $callable[1]);
 		} elseif (is_object($callable) && !$callable instanceof \Closure) {
-			return new \ReflectionMethod($callable, '__invoke');
+			return new ReflectionMethod($callable, '__invoke');
 		} else {
 			return new \ReflectionFunction($callable);
 		}
@@ -110,7 +110,7 @@ final class Callback
 	 */
 	public static function isStatic(callable $callable): bool
 	{
-		return is_array($callable) ? is_string($callable[0]) : is_string($callable);
+		return is_string(is_array($callable) ? $callable[0] : $callable);
 	}
 
 
@@ -120,14 +120,15 @@ final class Callback
 	public static function unwrap(\Closure $closure): callable|array
 	{
 		$r = new \ReflectionFunction($closure);
+		$class = $r->getClosureScopeClass()?->name;
 		if (str_ends_with($r->name, '}')) {
 			return $closure;
 
-		} elseif ($obj = $r->getClosureThis()) {
+		} elseif (($obj = $r->getClosureThis()) && $obj::class === $class) {
 			return [$obj, $r->name];
 
-		} elseif ($class = $r->getClosureScopeClass()) {
-			return [$class->name, $r->name];
+		} elseif ($class) {
+			return [$class, $r->name];
 
 		} else {
 			return $r->name;

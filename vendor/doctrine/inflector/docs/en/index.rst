@@ -39,10 +39,13 @@ you want to create an inflector for to the ``createForLanguage()`` method:
 The supported languages are as follows:
 
 - ``Language::ENGLISH``
+- ``Language::ESPERANTO``
 - ``Language::FRENCH``
+- ``Language::ITALIAN``
 - ``Language::NORWEGIAN_BOKMAL``
 - ``Language::PORTUGUESE``
 - ``Language::SPANISH``
+- ``Language::SWEDISH``
 - ``Language::TURKISH``
 
 If you want to manually construct the inflector instead of using a factory, you can do so like this:

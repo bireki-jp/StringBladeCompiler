@@ -22,9 +22,10 @@ use Nette\Utils\ObjectHelpers;
 trait SmartObject
 {
 	/**
+	 * @return mixed
 	 * @throws MemberAccessException
 	 */
-	public function __call(string $name, array $args): mixed
+	public function __call(string $name, array $args)
 	{
 		$class = static::class;
 
@@ -35,7 +36,7 @@ trait SmartObject
 					$handler(...$args);
 				}
 			} elseif ($handlers !== null) {
-				throw new UnexpectedValueException("Property $class::$$name must be iterable or null, " . gettype($handlers) . ' given.');
+				throw new UnexpectedValueException("Property $class::$$name must be iterable or null, " . get_debug_type($handlers) . ' given.');
 			}
 
 			return null;
@@ -48,16 +49,17 @@ trait SmartObject
 	/**
 	 * @throws MemberAccessException
 	 */
-	public static function __callStatic(string $name, array $args): mixed
+	public static function __callStatic(string $name, array $args)
 	{
 		ObjectHelpers::strictStaticCall(static::class, $name);
 	}
 
 
 	/**
+	 * @return mixed
 	 * @throws MemberAccessException if the property is not defined.
 	 */
-	public function &__get(string $name): mixed
+	public function &__get(string $name)
 	{
 		$class = static::class;
 

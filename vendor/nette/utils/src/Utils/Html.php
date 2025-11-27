@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace Nette\Utils;
 
-use Nette;
 use Nette\HtmlStringable;
-use function is_array, is_float, is_object, is_string;
+use function array_merge, array_splice, count, explode, func_num_args, html_entity_decode, htmlspecialchars, http_build_query, implode, is_array, is_bool, is_float, is_object, is_string, json_encode, max, number_format, rtrim, str_contains, str_repeat, str_replace, strip_tags, strncmp, strpbrk, substr;
+use const ENT_HTML5, ENT_NOQUOTES, ENT_QUOTES;
 
 
 /**
@@ -233,8 +233,6 @@ use function is_array, is_float, is_object, is_string;
  */
 class Html implements \ArrayAccess, \Countable, \IteratorAggregate, HtmlStringable
 {
-	use Nette\SmartObject;
-
 	/** @var array<string, mixed>  element's attributes */
 	public $attrs = [];
 
@@ -499,7 +497,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, HtmlStringab
 	/**
 	 * Special setter for element's attribute.
 	 */
-	final public function href(string $path, ?array $query = null): static
+	final public function href(string $path, array $query = []): static
 	{
 		if ($query) {
 			$query = http_build_query($query, '', '&');
@@ -552,7 +550,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, HtmlStringab
 	/**
 	 * Sets element's textual content.
 	 */
-	final public function setText(HtmlStringable|string|int|float $text): static
+	final public function setText(\Stringable|string $text): static
 	{
 		if (!$text instanceof HtmlStringable) {
 			$text = htmlspecialchars((string) $text, ENT_NOQUOTES, 'UTF-8');
@@ -584,7 +582,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, HtmlStringab
 	/**
 	 * Appends plain-text string to element content.
 	 */
-	public function addText(HtmlStringable|string|int|float $text): static
+	public function addText(\Stringable|string $text): static
 	{
 		if (!$text instanceof HtmlStringable) {
 			$text = htmlspecialchars((string) $text, ENT_NOQUOTES, 'UTF-8');
@@ -628,7 +626,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, HtmlStringab
 	 */
 	final public function offsetSet($index, $child): void
 	{
-		$this->insert($index, $child, true);
+		$this->insert($index, $child, replace: true);
 	}
 
 
